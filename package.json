@@ -1,0 +1,53 @@
+{
+  "name": "@sonicname/define-api",
+  "version": "0.1.0",
+  "description": "Define HTTP method handlers for React Router v7 routes",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "license": "MIT",
+  "keywords": [
+    "react-router",
+    "react-router-v7",
+    "loader",
+    "action",
+    "api",
+    "http-methods"
+  ],
+  "peerDependencies": {
+    "react-router": "^7.0.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "npm exec -- ultracite check",
+    "lint:fix": "npm exec -- ultracite fix",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "react-router": "^7.13.2",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.2",
+    "ultracite": "^7.4.0",
+    "vitest": "^4.1.2"
+  }
+}
