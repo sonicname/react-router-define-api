@@ -1,6 +1,6 @@
 {
   "name": "react-router-define-api",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Define HTTP method handlers for React Router v7 routes",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -49,5 +49,13 @@
     "typescript": "^6.0.2",
     "ultracite": "^7.4.0",
     "vitest": "^4.1.2"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sonicname/react-router-define-api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sonicname/react-router-define-api/issues"
+  },
+  "homepage": "https://github.com/sonicname/react-router-define-api#readme"
 }
