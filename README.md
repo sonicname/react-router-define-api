@@ -31,6 +31,56 @@ export const { loader, action } = defineApi({
 });
 ```
 
+### Builder API
+
+Prefer a fluent style? Call `defineApi()` with no arguments to get a chainable builder:
+
+```ts
+import { defineApi } from 'react-router-define-api';
+
+export const { loader, action } = defineApi()
+  .middleware([auth, logger])
+  .get(async ({ params }) => {
+    return { user: await db.users.find(params.id) };
+  })
+  .post(async ({ request }) => {
+    const body = await request.formData();
+    return { user: await db.users.create({ name: body.get('name') }) };
+  })
+  .delete(async ({ params }) => {
+    await db.users.delete(params.id);
+    return { deleted: true };
+  })
+  .build();
+```
+
+Available methods: `.get()`, `.post()`, `.put()`, `.patch()`, `.delete()`, `.middleware()`, `.build()`. Each accepts plain functions or validated handler configs:
+
+```ts
+export const { loader, action } = defineApi()
+  .middleware([auth, logger])
+  .get({
+    params: z.object({ id: z.string().uuid() }),
+    handler: async ({ params }) => {
+      return { user: await db.users.find(params.id) };
+    },
+  })
+  .post({
+    body: z.object({ name: z.string() }),
+    handler: async ({ body }) => {
+      return { user: await db.users.create(body) };
+    },
+  })
+  .delete({
+    params: z.object({ id: z.string() }),
+    handler: async ({ params }) => {
+      await db.users.delete(params.id);
+      return { deleted: true };
+    },
+  })
+  .build();
+```
+
 ### How it works
 
 - `GET` → `loader`
@@ -72,6 +122,45 @@ Middleware executes in array order. Each middleware can:
 - **Pass through** — call `next()` and return its result
 - **Short-circuit** — return a value without calling `next()`
 - **Transform** — call `next()`, modify the result, then return it
+
+### Request validation
+
+Validate params and body using any schema library with a `.parse()` method (Zod, Valibot, ArkType, etc.). Pass a handler config object instead of a plain function:
+
+```ts
+import { z } from 'zod';
+
+export const { loader, action } = defineApi({
+  GET: {
+    params: z.object({ id: z.string().uuid() }),
+    handler: async ({ params }) => {
+      return { user: await db.users.find(params.id) };
+    },
+  },
+  POST: {
+    body: z.object({ name: z.string(), email: z.string().email() }),
+    handler: async ({ body }) => {
+      return { user: await db.users.create(body) };
+    },
+  },
+  PUT: {
+    params: z.object({ id: z.string() }),
+    body: z.object({ name: z.string() }),
+    handler: async ({ params, body }) => {
+      return { user: await db.users.update(params.id, body) };
+    },
+  },
+});
+```
+
+- **`params`** — validates `args.params` (route path parameters)
+- **`body`** — auto-parses the request body based on `Content-Type`, then validates:
+  - `application/json` → `request.json()`
+  - `application/x-www-form-urlencoded` / `multipart/form-data` → `request.formData()`
+  - `text/*` → `request.text()`
+  - Other → `415 Unsupported Media Type`
+- Validation failure → `400` response with error details
+- Plain functions and handler configs can be mixed in the same `defineApi` call
 
 ### Response type helpers
 

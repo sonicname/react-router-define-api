@@ -18,20 +18,39 @@ export type MiddlewareFn = (
   next: () => Promise<unknown>,
 ) => unknown | Promise<unknown>;
 
+/** Generic schema interface — works with Zod, Valibot, ArkType, etc. */
+export interface Schema<T = unknown> {
+  parse(input: unknown): T;
+}
+
+/** Handler definition with optional validation schemas */
+export interface HandlerDef {
+  params?: Schema;
+  body?: Schema;
+  handler: (args: HandlerArgs & { body?: unknown }) => unknown;
+}
+
+/** A method entry is either a plain function or a validated handler config */
+export type MethodEntry =
+  | ((args: LoaderFunctionArgs | ActionFunctionArgs) => unknown)
+  | HandlerDef;
+
 /** Map of HTTP method handlers passed to defineApi */
 export type ApiHandlers = {
   middleware?: MiddlewareFn[];
-  GET?: (args: LoaderFunctionArgs) => unknown;
-  POST?: (args: ActionFunctionArgs) => unknown;
-  PUT?: (args: ActionFunctionArgs) => unknown;
-  PATCH?: (args: ActionFunctionArgs) => unknown;
-  DELETE?: (args: ActionFunctionArgs) => unknown;
+  GET?: ((args: LoaderFunctionArgs) => unknown) | HandlerDef;
+  POST?: ((args: ActionFunctionArgs) => unknown) | HandlerDef;
+  PUT?: ((args: ActionFunctionArgs) => unknown) | HandlerDef;
+  PATCH?: ((args: ActionFunctionArgs) => unknown) | HandlerDef;
+  DELETE?: ((args: ActionFunctionArgs) => unknown) | HandlerDef;
 };
 
-/** Extract the awaited return type from a handler */
+/** Extract the awaited return type from a handler (plain function or config) */
 type HandlerReturn<T> = T extends (...args: never[]) => infer R
   ? Awaited<R>
-  : never;
+  : T extends { handler: (...args: never[]) => infer R }
+    ? Awaited<R>
+    : never;
 
 /** Checks if handler map includes any action methods */
 type HasActionMethods<H> =

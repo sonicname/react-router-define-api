@@ -1,17 +1,32 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { describe, expect, test } from 'vitest';
 import { defineApi } from '../src/define-api';
+import type { Schema } from '../src/types';
 
 /** Create loader/action args with a real Request object */
 function createArgs(
   method: string,
   params: Record<string, string> = {},
+  options?: { body?: string; contentType?: string },
 ): LoaderFunctionArgs | ActionFunctionArgs {
+  const headers: Record<string, string> = {};
+  if (options?.contentType) {
+    headers['content-type'] = options.contentType;
+  }
   return {
-    request: new Request('http://localhost/test', { method }),
+    request: new Request('http://localhost/test', {
+      method,
+      headers,
+      body: options?.body,
+    }),
     params,
     context: {},
-  } as any; // Type assertion since we're only using a subset of the full args
+  } as any;
+}
+
+/** Simple mock schema that mimics Zod's .parse() contract */
+function mockSchema<T>(validate: (input: unknown) => T): Schema<T> {
+  return { parse: validate };
 }
 
 describe('defineApi', () => {
@@ -210,5 +225,290 @@ describe('middleware', () => {
     });
     expect(await api.loader!(createArgs('GET'))).toBe('no-mw');
     expect(await api.action!(createArgs('POST'))).toBe('post-no-mw');
+  });
+});
+
+describe('validation', () => {
+  test('params schema validates route params', async () => {
+    const api = defineApi({
+      GET: {
+        params: mockSchema((input) => {
+          const p = input as Record<string, string>;
+          if (!p.id) throw new Error('id required');
+          return { id: Number(p.id) };
+        }),
+        handler: async (args) => ({ id: (args as any).params.id }),
+      },
+    });
+    const result = await api.loader!(createArgs('GET', { id: '42' }));
+    expect(result).toEqual({ id: 42 });
+  });
+
+  test('params validation failure throws 400', async () => {
+    const api = defineApi({
+      GET: {
+        params: mockSchema(() => {
+          throw new Error('invalid params');
+        }),
+        handler: async () => 'unreachable',
+      },
+    });
+    try {
+      await api.loader!(createArgs('GET'));
+      expect.fail('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(Response);
+      expect((error as Response).status).toBe(400);
+    }
+  });
+
+  test('body schema validates JSON body', async () => {
+    const api = defineApi({
+      POST: {
+        body: mockSchema((input) => {
+          const b = input as Record<string, unknown>;
+          if (typeof b.name !== 'string') throw new Error('name required');
+          return { name: b.name };
+        }),
+        handler: async (args) => ({ name: (args as any).body.name }),
+      },
+    });
+    const result = await api.action!(
+      createArgs('POST', {}, {
+        body: JSON.stringify({ name: 'Alice' }),
+        contentType: 'application/json',
+      }),
+    );
+    expect(result).toEqual({ name: 'Alice' });
+  });
+
+  test('body validation failure throws 400', async () => {
+    const api = defineApi({
+      POST: {
+        body: mockSchema(() => {
+          throw new Error('invalid body');
+        }),
+        handler: async () => 'unreachable',
+      },
+    });
+    try {
+      await api.action!(
+        createArgs('POST', {}, {
+          body: JSON.stringify({ bad: true }),
+          contentType: 'application/json',
+        }),
+      );
+      expect.fail('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(Response);
+      expect((error as Response).status).toBe(400);
+    }
+  });
+
+  test('form data body parsing', async () => {
+    const api = defineApi({
+      POST: {
+        body: mockSchema((input) => input),
+        handler: async (args) => (args as any).body,
+      },
+    });
+    const result = await api.action!(
+      createArgs('POST', {}, {
+        body: 'name=Bob&role=admin',
+        contentType: 'application/x-www-form-urlencoded',
+      }),
+    );
+    expect(result).toEqual({ name: 'Bob', role: 'admin' });
+  });
+
+  test('unsupported content-type throws 415', async () => {
+    const api = defineApi({
+      POST: {
+        body: mockSchema((input) => input),
+        handler: async () => 'unreachable',
+      },
+    });
+    try {
+      await api.action!(
+        createArgs('POST', {}, {
+          body: 'binary data',
+          contentType: 'application/octet-stream',
+        }),
+      );
+      expect.fail('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(Response);
+      expect((error as Response).status).toBe(415);
+    }
+  });
+
+  test('params + body validation together', async () => {
+    const api = defineApi({
+      PUT: {
+        params: mockSchema((input) => {
+          const p = input as Record<string, string>;
+          return { id: Number(p.id) };
+        }),
+        body: mockSchema((input) => {
+          const b = input as Record<string, unknown>;
+          return { name: String(b.name) };
+        }),
+        handler: async (args) => {
+          const a = args as any;
+          return { id: a.params.id, name: a.body.name };
+        },
+      },
+    });
+    const result = await api.action!(
+      createArgs('PUT', { id: '7' }, {
+        body: JSON.stringify({ name: 'Updated' }),
+        contentType: 'application/json',
+      }),
+    );
+    expect(result).toEqual({ id: 7, name: 'Updated' });
+  });
+
+  test('handler config without schemas works like plain function', async () => {
+    const api = defineApi({
+      GET: {
+        handler: async ({ params }) => ({ id: params.id }),
+      },
+    });
+    const result = await api.loader!(createArgs('GET', { id: '1' }));
+    expect(result).toEqual({ id: '1' });
+  });
+
+  test('middleware + validation work together', async () => {
+    const order: string[] = [];
+    const api = defineApi({
+      middleware: [
+        async (_args, next) => {
+          order.push('mw');
+          return next();
+        },
+      ],
+      POST: {
+        body: mockSchema((input) => input),
+        handler: async (args) => {
+          order.push('handler');
+          return (args as any).body;
+        },
+      },
+    });
+    const result = await api.action!(
+      createArgs('POST', {}, {
+        body: JSON.stringify({ ok: true }),
+        contentType: 'application/json',
+      }),
+    );
+    expect(result).toEqual({ ok: true });
+    expect(order).toEqual(['mw', 'handler']);
+  });
+});
+
+describe('builder API', () => {
+  test('defineApi() returns a builder', () => {
+    const builder = defineApi();
+    expect(builder).toBeDefined();
+    expect(typeof builder.get).toBe('function');
+    expect(typeof builder.post).toBe('function');
+    expect(typeof builder.build).toBe('function');
+  });
+
+  test('.get() sets loader', async () => {
+    const api = defineApi()
+      .get(async () => ({ data: 'hello' }))
+      .build();
+    expect(api.loader).toBeDefined();
+    expect(api.action).toBeUndefined();
+    const result = await api.loader!(createArgs('GET'));
+    expect(result).toEqual({ data: 'hello' });
+  });
+
+  test('.post() sets action', async () => {
+    const api = defineApi()
+      .post(async () => ({ created: true }))
+      .build();
+    expect(api.action).toBeDefined();
+    expect(api.loader).toBeUndefined();
+    const result = await api.action!(createArgs('POST'));
+    expect(result).toEqual({ created: true });
+  });
+
+  test('chaining multiple methods', async () => {
+    const api = defineApi()
+      .get(async () => 'get')
+      .post(async () => 'post')
+      .put(async () => 'put')
+      .patch(async () => 'patch')
+      .delete(async () => 'delete')
+      .build();
+    expect(await api.loader!(createArgs('GET'))).toBe('get');
+    expect(await api.action!(createArgs('POST'))).toBe('post');
+    expect(await api.action!(createArgs('PUT'))).toBe('put');
+    expect(await api.action!(createArgs('PATCH'))).toBe('patch');
+    expect(await api.action!(createArgs('DELETE'))).toBe('delete');
+  });
+
+  test('.middleware() applies to all handlers', async () => {
+    const order: string[] = [];
+    const api = defineApi()
+      .middleware([
+        async (_args, next) => {
+          order.push('mw');
+          return next();
+        },
+      ])
+      .get(async () => {
+        order.push('get');
+        return 'ok';
+      })
+      .post(async () => {
+        order.push('post');
+        return 'ok';
+      })
+      .build();
+
+    await api.loader!(createArgs('GET'));
+    expect(order).toEqual(['mw', 'get']);
+
+    order.length = 0;
+    await api.action!(createArgs('POST'));
+    expect(order).toEqual(['mw', 'post']);
+  });
+
+  test('builder with validated handler config', async () => {
+    const api = defineApi()
+      .post({
+        body: mockSchema((input) => input),
+        handler: async (args) => (args as any).body,
+      })
+      .build();
+    const result = await api.action!(
+      createArgs('POST', {}, {
+        body: JSON.stringify({ name: 'Alice' }),
+        contentType: 'application/json',
+      }),
+    );
+    expect(result).toEqual({ name: 'Alice' });
+  });
+
+  test('builder throws 405 for undefined method', async () => {
+    const api = defineApi()
+      .post(async () => 'ok')
+      .build();
+    try {
+      await api.action!(createArgs('DELETE'));
+      expect.fail('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(Response);
+      expect((error as Response).status).toBe(405);
+    }
+  });
+
+  test('empty builder returns undefined loader and action', () => {
+    const api = defineApi().build();
+    expect(api.loader).toBeUndefined();
+    expect(api.action).toBeUndefined();
   });
 });
