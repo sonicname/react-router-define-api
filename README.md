@@ -87,11 +87,32 @@ Full type inference — return types are inferred from your handler functions.
 ```ts
 const api = defineApi({
   GET: async ({ params }) => ({ id: params.id, name: 'John' }),
+  POST: async ({ request }) => {
+    const body = await request.formData();
+    return { created: true, name: body.get('name') };
+  },
 });
 
-// api.loader return type is inferred as { id: string, name: string }
-// api.action is undefined (no action methods defined)
+// api.loader return type is inferred as { id: string | undefined, name: string }
+// api.action is undefined when no action methods defined
 ```
+
+### Response type helpers
+
+Access inferred response types via `typeof api.*Response` — useful for typing client-side fetchers or shared contracts:
+
+```ts
+type GetRes = typeof api.GetResponse;
+// → { id: string | undefined; name: string }
+
+type PostRes = typeof api.PostResponse;
+// → { created: boolean; name: FormDataEntryValue | null }
+
+// Undefined methods → never
+type PutRes = typeof api.PutResponse; // → never
+```
+
+These are **type-only** — zero runtime cost.
 
 ## License
 

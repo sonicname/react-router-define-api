@@ -42,6 +42,11 @@ type ActionReturn<H> =
   | (H extends { PATCH: infer F } ? HandlerReturn<F> : never)
   | (H extends { DELETE: infer F } ? HandlerReturn<F> : never);
 
+/** Extract response type for a specific method, or never if not defined */
+type ResponseOf<H, M extends HttpMethod> = H extends Record<M, infer F>
+  ? HandlerReturn<F>
+  : never;
+
 /** Return type of defineApi — loader/action presence and return types inferred from handlers */
 export type ApiExports<H extends ApiHandlers> = {
   loader: H extends { GET: infer F }
@@ -50,4 +55,14 @@ export type ApiExports<H extends ApiHandlers> = {
   action: HasActionMethods<H> extends true
     ? (args: ActionFunctionArgs) => Promise<ActionReturn<H>>
     : undefined;
+  /** Inferred return type of the GET handler */
+  GetResponse: ResponseOf<H, 'GET'>;
+  /** Inferred return type of the POST handler */
+  PostResponse: ResponseOf<H, 'POST'>;
+  /** Inferred return type of the PUT handler */
+  PutResponse: ResponseOf<H, 'PUT'>;
+  /** Inferred return type of the PATCH handler */
+  PatchResponse: ResponseOf<H, 'PATCH'>;
+  /** Inferred return type of the DELETE handler */
+  DeleteResponse: ResponseOf<H, 'DELETE'>;
 };
