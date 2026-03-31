@@ -53,8 +53,8 @@ type ResponseOf<H, M extends HttpMethod> = H extends Record<M, infer F>
  *
  * @example
  * ```ts
- * const loaderActionHandler: HandlerWrapper<BaseResponse<T>> = (fn) =>
- *   async (args) => {
+ * const loaderActionHandler: HandlerWrapper<BaseResponse<unknown>> =
+ *   (fn) => async (args) => {
  *     try {
  *       const result = await fn(args);
  *       return { success: true, status: 200, data: result };
@@ -64,9 +64,9 @@ type ResponseOf<H, M extends HttpMethod> = H extends Record<M, infer F>
  *   };
  * ```
  */
-export type HandlerWrapper<W = unknown> = <TArgs, TResult>(
-  fn: (args: TArgs) => Promise<TResult>,
-) => (args: TArgs) => Promise<W>;
+export type HandlerWrapper<W = unknown> = (
+  fn: (args: LoaderFunctionArgs | ActionFunctionArgs) => unknown,
+) => (args: LoaderFunctionArgs | ActionFunctionArgs) => Promise<W>;
 
 /** Options for defineApi */
 export interface DefineApiOptions<W = never> {
