@@ -1,6 +1,6 @@
 {
   "name": "react-router-define-api",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Define HTTP method handlers for React Router v7 routes",
   "type": "module",
   "main": "./dist/index.cjs",
