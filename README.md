@@ -1,11 +1,11 @@
-# react-router-define-api
+# @sonicname/define-api
 
 Define HTTP method handlers for React Router v7 routes — no more manual `request.method` checks.
 
 ## Install
 
 ```bash
-npm install react-router-define-api
+npm install @sonicname/define-api
 ```
 
 **Peer dependency:** `react-router@^7.0.0`
@@ -14,7 +14,7 @@ npm install react-router-define-api
 
 ```ts
 // app/routes/api.users.ts
-import { defineApi } from "react-router-define-api";
+import { defineApi } from '@sonicname/define-api';
 
 const api = defineApi({
   GET: async ({ params }) => {
@@ -23,7 +23,7 @@ const api = defineApi({
   },
   POST: async ({ request }) => {
     const body = await request.formData();
-    const user = await db.users.create({ name: body.get("name") });
+    const user = await db.users.create({ name: body.get('name') });
     return { user };
   },
   DELETE: async ({ params }) => {
@@ -46,11 +46,21 @@ export const action = api.action;
 
 ```ts
 const api = defineApi({
-  GET: async (args) => { /* ... */ },
-  POST: async (args) => { /* ... */ },
-  PUT: async (args) => { /* ... */ },
-  PATCH: async (args) => { /* ... */ },
-  DELETE: async (args) => { /* ... */ },
+  GET: async (args) => {
+    /* ... */
+  },
+  POST: async (args) => {
+    /* ... */
+  },
+  PUT: async (args) => {
+    /* ... */
+  },
+  PATCH: async (args) => {
+    /* ... */
+  },
+  DELETE: async (args) => {
+    /* ... */
+  },
 });
 ```
 
@@ -58,13 +68,14 @@ const api = defineApi({
 
 ### `defineApi(handlers)`
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter  | Type          | Description                              |
+| ---------- | ------------- | ---------------------------------------- |
 | `handlers` | `ApiHandlers` | Map of HTTP methods to handler functions |
 
 Returns `{ loader, action }` — each is `undefined` if no relevant methods are defined.
 
 Handler args are the same as React Router's `LoaderFunctionArgs` / `ActionFunctionArgs`:
+
 - `request` — the incoming `Request` object
 - `params` — route parameters
 - `context` — app context
@@ -75,7 +86,7 @@ Full type inference — return types are inferred from your handler functions.
 
 ```ts
 const api = defineApi({
-  GET: async ({ params }) => ({ id: params.id, name: "John" }),
+  GET: async ({ params }) => ({ id: params.id, name: 'John' }),
 });
 
 // api.loader return type is inferred as { id: string, name: string }
