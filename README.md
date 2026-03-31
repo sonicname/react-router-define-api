@@ -18,8 +18,7 @@ import { defineApi } from 'react-router-define-api';
 
 export const { loader, action } = defineApi({
   GET: async ({ params }) => {
-    const users = await db.users.findMany();
-    return { users };
+    return { users: await db.users.findMany() };
   },
   POST: async ({ request }) => {
     const body = await request.formData();
@@ -37,6 +36,35 @@ export const { loader, action } = defineApi({
 - `GET` → `loader`
 - `POST`, `PUT`, `PATCH`, `DELETE` → dispatched inside `action` by `request.method`
 - Undefined methods → `405 Method Not Allowed`
+
+### Handler wrapper
+
+Wrap all handlers with a higher-order function for error handling, response transformation, logging, etc.:
+
+```ts
+export const { loader, action } = defineApi({
+  GET: async () => ({ name: 'John' }),
+  POST: async ({ request }) => {
+    const body = await request.formData();
+    return { name: body.get('name') };
+  },
+}, {
+  handler: loaderActionHandler,
+});
+```
+
+Example `loaderActionHandler`:
+
+```ts
+const loaderActionHandler = (fn) => async (args) => {
+  try {
+    const result = await fn(args);
+    return { success: true, status: 200, data: result };
+  } catch (error) {
+    return { success: false, status: 500, message: String(error) };
+  }
+};
+```
 
 ### Response type helpers
 

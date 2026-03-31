@@ -105,4 +105,50 @@ describe('defineApi', () => {
     const result = api.loader!(createArgs('GET', { id: '1' }));
     expect(result).toEqual({ id: '1' });
   });
+
+  test('handler wrapper transforms loader response', async () => {
+    const wrapper = (fn: (args: any) => Promise<any>) => async (args: any) => {
+      try {
+        const result = await fn(args);
+        return { success: true, status: 200, data: result };
+      } catch {
+        return { success: false, status: 500 };
+      }
+    };
+    const api = defineApi(
+      { GET: async () => ({ name: 'John' }) },
+      { handler: wrapper },
+    );
+    const result = await api.loader!(createArgs('GET'));
+    expect(result).toEqual({ success: true, status: 200, data: { name: 'John' } });
+  });
+
+  test('handler wrapper catches loader errors', async () => {
+    const wrapper = (fn: (args: any) => Promise<any>) => async (args: any) => {
+      try {
+        return await fn(args);
+      } catch {
+        return { success: false, error: 'caught' };
+      }
+    };
+    const api = defineApi(
+      { GET: async () => { throw new Error('fail'); } },
+      { handler: wrapper },
+    );
+    const result = await api.loader!(createArgs('GET'));
+    expect(result).toEqual({ success: false, error: 'caught' });
+  });
+
+  test('handler wrapper transforms action response', async () => {
+    const wrapper = (fn: (args: any) => Promise<any>) => async (args: any) => {
+      const result = await fn(args);
+      return { success: true, data: result };
+    };
+    const api = defineApi(
+      { POST: async () => ({ created: true }) },
+      { handler: wrapper },
+    );
+    const result = await api.action!(createArgs('POST'));
+    expect(result).toEqual({ success: true, data: { created: true } });
+  });
 });

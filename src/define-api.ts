@@ -1,5 +1,10 @@
 import type { ActionFunctionArgs } from 'react-router';
-import type { ActionMethod, ApiExports, ApiHandlers } from './types';
+import type {
+  ActionMethod,
+  ApiExports,
+  ApiHandlers,
+  DefineApiOptions,
+} from './types';
 
 /** Action methods to check for handler presence */
 const ACTION_METHODS: readonly ActionMethod[] = [
@@ -15,35 +20,49 @@ const ACTION_METHODS: readonly ActionMethod[] = [
  *
  * @example
  * ```ts
- * const api = defineApi({
+ * export const { loader, action } = defineApi({
  *   GET: async ({ params }) => ({ user: params.id }),
  *   POST: async ({ request }) => {
  *     const body = await request.formData();
  *     return { created: true };
  *   },
  * });
+ * ```
  *
- * export const loader = api.loader;
- * export const action = api.action;
+ * @example With handler wrapper
+ * ```ts
+ * export const { loader, action } = defineApi({
+ *   GET: async () => ({ data: 'ok' }),
+ * }, {
+ *   handler: loaderActionHandler,
+ * });
  * ```
  */
-export function defineApi<const H extends ApiHandlers>(
+export function defineApi<const H extends ApiHandlers, W = never>(
   handlers: H,
-): ApiExports<H> {
-  const loader = handlers.GET ?? undefined;
+  options?: DefineApiOptions<W>,
+): ApiExports<H, W> {
+  const { handler: wrapper } = options ?? {};
 
-  const hasActionHandlers = ACTION_METHODS.some((m) => handlers[m] != null);
+  const wrap = <F extends (...args: never[]) => unknown>(fn: F) =>
+    wrapper ? wrapper(fn as any) : fn;
+
+  const loader = handlers.GET ? wrap(handlers.GET) : undefined;
+
+  const hasActionHandlers = ACTION_METHODS.some(
+    (m) => handlers[m] != null,
+  );
 
   const action = hasActionHandlers
-    ? async (args: ActionFunctionArgs) => {
+    ? wrap(async (args: ActionFunctionArgs) => {
         const method = args.request.method.toUpperCase() as ActionMethod;
         const handler = handlers[method];
         if (typeof handler === 'function') {
           return handler(args);
         }
         throw new Response('Method Not Allowed', { status: 405 });
-      }
+      })
     : undefined;
 
-  return { loader, action } as ApiExports<H>;
+  return { loader, action } as ApiExports<H, W>;
 }
