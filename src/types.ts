@@ -9,8 +9,18 @@ export type ActionMethod = Exclude<HttpMethod, 'GET'>;
 /** Handler function for a given HTTP method */
 export type MethodHandler<Args, R = unknown> = (args: Args) => R | Promise<R>;
 
+/** Route handler args (union of loader and action args) */
+export type HandlerArgs = LoaderFunctionArgs | ActionFunctionArgs;
+
+/** Middleware function — call next() to proceed, or return early to short-circuit */
+export type MiddlewareFn = (
+  args: HandlerArgs,
+  next: () => Promise<unknown>,
+) => unknown | Promise<unknown>;
+
 /** Map of HTTP method handlers passed to defineApi */
 export type ApiHandlers = {
+  middleware?: MiddlewareFn[];
   GET?: (args: LoaderFunctionArgs) => unknown;
   POST?: (args: ActionFunctionArgs) => unknown;
   PUT?: (args: ActionFunctionArgs) => unknown;

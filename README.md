@@ -37,6 +37,42 @@ export const { loader, action } = defineApi({
 - `POST`, `PUT`, `PATCH`, `DELETE` → dispatched inside `action` by `request.method`
 - Undefined methods → `405 Method Not Allowed`
 
+### Middleware
+
+Add middleware that runs before every handler. Middleware uses the onion model — call `next()` to proceed, or return early to short-circuit.
+
+```ts
+import type { MiddlewareFn } from 'react-router-define-api';
+
+const auth: MiddlewareFn = async (args, next) => {
+  const token = args.request.headers.get('Authorization');
+  if (!token) {
+    throw new Response('Unauthorized', { status: 401 });
+  }
+  return next();
+};
+
+const logger: MiddlewareFn = async (args, next) => {
+  console.log(`${args.request.method} ${args.request.url}`);
+  return next();
+};
+
+export const { loader, action } = defineApi({
+  middleware: [auth, logger],
+  GET: async ({ params }) => ({ user: params.id }),
+  POST: async ({ request }) => {
+    const body = await request.formData();
+    return { created: true };
+  },
+});
+```
+
+Middleware executes in array order. Each middleware can:
+
+- **Pass through** — call `next()` and return its result
+- **Short-circuit** — return a value without calling `next()`
+- **Transform** — call `next()`, modify the result, then return it
+
 ### Response type helpers
 
 Access inferred response types for client-side fetchers or shared contracts:
