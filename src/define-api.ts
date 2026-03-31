@@ -1,10 +1,5 @@
 import type { ActionFunctionArgs } from 'react-router';
-import type {
-  ActionMethod,
-  ApiExports,
-  ApiHandlers,
-  DefineApiOptions,
-} from './types';
+import type { ActionMethod, ApiExports, ApiHandlers } from './types';
 
 /** Action methods to check for handler presence */
 const ACTION_METHODS: readonly ActionMethod[] = [
@@ -28,41 +23,26 @@ const ACTION_METHODS: readonly ActionMethod[] = [
  *   },
  * });
  * ```
- *
- * @example With handler wrapper
- * ```ts
- * export const { loader, action } = defineApi({
- *   GET: async () => ({ data: 'ok' }),
- * }, {
- *   handler: loaderActionHandler,
- * });
- * ```
  */
-export function defineApi<const H extends ApiHandlers, W = never>(
+export function defineApi<const H extends ApiHandlers>(
   handlers: H,
-  options?: DefineApiOptions<W>,
-): ApiExports<H, W> {
-  const { handler: wrapper } = options ?? {};
-
-  const wrap = <F extends (...args: never[]) => unknown>(fn: F) =>
-    wrapper ? wrapper(fn as any) : fn;
-
-  const loader = handlers.GET ? wrap(handlers.GET) : undefined;
+): ApiExports<H> {
+  const loader = handlers.GET ?? undefined;
 
   const hasActionHandlers = ACTION_METHODS.some(
     (m) => handlers[m] != null,
   );
 
   const action = hasActionHandlers
-    ? wrap(async (args: ActionFunctionArgs) => {
+    ? async (args: ActionFunctionArgs) => {
         const method = args.request.method.toUpperCase() as ActionMethod;
         const handler = handlers[method];
         if (typeof handler === 'function') {
           return handler(args);
         }
         throw new Response('Method Not Allowed', { status: 405 });
-      })
+      }
     : undefined;
 
-  return { loader, action } as ApiExports<H, W>;
+  return { loader, action } as ApiExports<H>;
 }

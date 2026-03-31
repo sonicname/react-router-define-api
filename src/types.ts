@@ -47,53 +47,22 @@ type ResponseOf<H, M extends HttpMethod> = H extends Record<M, infer F>
   ? HandlerReturn<F>
   : never;
 
-/**
- * Higher-order function that wraps each method handler.
- * Receives the original handler and returns a new handler with transformed behavior.
- *
- * @example
- * ```ts
- * const loaderActionHandler: HandlerWrapper<BaseResponse<unknown>> =
- *   (fn) => async (args) => {
- *     try {
- *       const result = await fn(args);
- *       return { success: true, status: 200, data: result };
- *     } catch (error) {
- *       return { success: false, status: 500, message: String(error) };
- *     }
- *   };
- * ```
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type HandlerWrapper<W = unknown> = (fn: (...args: any[]) => any) => (...args: any[]) => Promise<W>;
-
-/** Options for defineApi */
-export interface DefineApiOptions<W = never> {
-  /** Higher-order function to wrap all method handlers (e.g. for error handling, response transformation) */
-  handler?: HandlerWrapper<W>;
-}
-
-/** Apply wrapper type: if wrapper is provided, use its return type; otherwise use the raw handler return */
-type WithWrapper<R, W> = [W] extends [never] ? R : Awaited<W>;
-
 /** Return type of defineApi — loader/action presence and return types inferred from handlers */
-export type ApiExports<H extends ApiHandlers, W = never> = {
+export type ApiExports<H extends ApiHandlers> = {
   loader: H extends { GET: infer F }
-    ? (args: LoaderFunctionArgs) => Promise<WithWrapper<HandlerReturn<F>, W>>
+    ? (args: LoaderFunctionArgs) => Promise<HandlerReturn<F>>
     : undefined;
   action: HasActionMethods<H> extends true
-    ? (
-        args: ActionFunctionArgs,
-      ) => Promise<WithWrapper<ActionReturn<H>, W>>
+    ? (args: ActionFunctionArgs) => Promise<ActionReturn<H>>
     : undefined;
   /** Inferred return type of the GET handler */
-  GetResponse: WithWrapper<ResponseOf<H, 'GET'>, W>;
+  GetResponse: ResponseOf<H, 'GET'>;
   /** Inferred return type of the POST handler */
-  PostResponse: WithWrapper<ResponseOf<H, 'POST'>, W>;
+  PostResponse: ResponseOf<H, 'POST'>;
   /** Inferred return type of the PUT handler */
-  PutResponse: WithWrapper<ResponseOf<H, 'PUT'>, W>;
+  PutResponse: ResponseOf<H, 'PUT'>;
   /** Inferred return type of the PATCH handler */
-  PatchResponse: WithWrapper<ResponseOf<H, 'PATCH'>, W>;
+  PatchResponse: ResponseOf<H, 'PATCH'>;
   /** Inferred return type of the DELETE handler */
-  DeleteResponse: WithWrapper<ResponseOf<H, 'DELETE'>, W>;
+  DeleteResponse: ResponseOf<H, 'DELETE'>;
 };
