@@ -64,9 +64,8 @@ type ResponseOf<H, M extends HttpMethod> = H extends Record<M, infer F>
  *   };
  * ```
  */
-export type HandlerWrapper<W = unknown> = (
-  fn: (args: LoaderFunctionArgs | ActionFunctionArgs) => unknown,
-) => (args: LoaderFunctionArgs | ActionFunctionArgs) => Promise<W>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type HandlerWrapper<W = unknown> = (fn: (...args: any[]) => any) => (...args: any[]) => Promise<W>;
 
 /** Options for defineApi */
 export interface DefineApiOptions<W = never> {
