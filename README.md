@@ -1,11 +1,11 @@
-# @sonicname/define-api
+# react-router-define-api
 
 Define HTTP method handlers for React Router v7 routes — no more manual `request.method` checks.
 
 ## Install
 
 ```bash
-npm install @sonicname/define-api
+npm install react-router-define-api
 ```
 
 **Peer dependency:** `react-router@^7.0.0`
@@ -14,7 +14,7 @@ npm install @sonicname/define-api
 
 ```ts
 // app/routes/api.users.ts
-import { defineApi } from '@sonicname/define-api';
+import { defineApi } from 'react-router-define-api';
 
 const api = defineApi({
   GET: async ({ params }) => {

@@ -1,5 +1,5 @@
 {
-  "name": "@sonicname/define-api",
+  "name": "react-router-define-api",
   "version": "0.1.0",
   "description": "Define HTTP method handlers for React Router v7 routes",
   "type": "module",
