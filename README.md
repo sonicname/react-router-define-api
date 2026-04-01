@@ -123,6 +123,38 @@ Middleware executes in array order. Each middleware can:
 - **Short-circuit** — return a value without calling `next()`
 - **Transform** — call `next()`, modify the result, then return it
 
+### CORS
+
+Built-in CORS middleware factory — handles preflight `OPTIONS` requests and sets headers on all responses:
+
+```ts
+import { cors, defineApi } from 'react-router-define-api';
+
+export const { loader, action } = defineApi({
+  middleware: [
+    cors({
+      origin: 'https://myapp.com',       // string, array, function, or true (any)
+      credentials: true,                  // Access-Control-Allow-Credentials
+      methods: ['GET', 'POST', 'DELETE'], // Access-Control-Allow-Methods
+      allowedHeaders: ['Authorization'],  // Access-Control-Allow-Headers
+      exposedHeaders: ['X-Total-Count'],  // Access-Control-Expose-Headers
+      maxAge: 3600,                       // preflight cache (seconds, default: 86400)
+    }),
+  ],
+  GET: async () => ({ users: [] }),
+  POST: async () => ({ created: true }),
+});
+```
+
+| Option | Type | Default | Description |
+| --------------- | ----------------------------------------------------------------- | --------------- | ----------------------------- |
+| `origin` | `boolean \| string \| string[] \| (origin: string) => boolean` | `true` | Allowed origins |
+| `credentials` | `boolean` | `false` | Allow cookies/auth headers |
+| `methods` | `string[]` | — | Allowed methods for preflight |
+| `allowedHeaders` | `string[]` | mirrors request | Allowed request headers |
+| `exposedHeaders` | `string[]` | — | Headers exposed to browser |
+| `maxAge` | `number` | `86400` | Preflight cache duration (s) |
+
 ### Request validation
 
 Validate params and body using any schema library with a `.parse()` method (Zod, Valibot, ArkType, etc.). Pass a handler config object instead of a plain function:
