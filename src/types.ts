@@ -45,11 +45,14 @@ export type ApiHandlers = {
   DELETE?: ((args: ActionFunctionArgs) => unknown) | HandlerDef;
 };
 
+/** Unwrap TypedResponse to get the data type, or pass through as-is */
+type UnwrapResponse<T> = T extends { readonly _type: infer D } ? D : T;
+
 /** Extract the awaited return type from a handler (plain function or config) */
 type HandlerReturn<T> = T extends (...args: never[]) => infer R
-  ? Awaited<R>
+  ? UnwrapResponse<Awaited<R>>
   : T extends { handler: (...args: never[]) => infer R }
-    ? Awaited<R>
+    ? UnwrapResponse<Awaited<R>>
     : never;
 
 /** Checks if handler map includes any action methods */

@@ -194,6 +194,40 @@ export const { loader, action } = defineApi({
 - Validation failure → `400` response with error details
 - Plain functions and handler configs can be mixed in the same `defineApi` call
 
+### Response helpers
+
+Utility functions for error and special HTTP responses — no more manual `new Response(...)`.
+
+Return **plain objects** for normal success responses (preserves type inference for `GetResponse`, `PostResponse`, etc.). Use helpers when you need specific status codes or headers:
+
+```ts
+import { created, noContent, notFound } from 'react-router-define-api';
+
+export const { loader, action } = defineApi({
+  GET: async () => ({ users: await db.users.findMany() }), // plain object → type inference works
+  POST: async () => created({ id: 1 }),                    // 201 Created
+  DELETE: async ({ params }) => {
+    const user = await db.users.find(params.id);
+    if (!user) return notFound('User not found');           // 404
+    await db.users.delete(params.id);
+    return noContent();                                     // 204
+  },
+});
+```
+
+| Helper | Status | Body |
+| ---------------- | ------ | ----------------------------- |
+| `json(data)` | 200 | JSON (custom status via opts) |
+| `created(data)` | 201 | JSON |
+| `noContent()` | 204 | empty |
+| `redirect(url)` | 302 | empty (301/303/307/308 opts) |
+| `badRequest()` | 400 | `{ error: message }` |
+| `unauthorized()` | 401 | `{ error: message }` |
+| `forbidden()` | 403 | `{ error: message }` |
+| `notFound()` | 404 | `{ error: message }` |
+
+All helpers accept optional `headers` for custom response headers.
+
 ### Response type helpers
 
 Access inferred response types for client-side fetchers or shared contracts:
